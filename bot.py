@@ -135,13 +135,21 @@ async def price_monitor_loop():
         await asyncio.sleep(CHECK_INTERVAL_SECONDS)
 
 async def run_bot():
+    retry_delay = 10  # start with 10s
     while True:
         try:
             print("Connecting to Discord...")
             await bot.start(TOKEN)
+        except discord.errors.HTTPException as e:
+            if e.status == 429:
+                print(f"Rate limited (429): {e}. Backing off for {retry_delay}s...")
+                await asyncio.sleep(retry_delay)
+                retry_delay = min(retry_delay * 2, 300)  # double delay, max 5 min
+            else:
+                print(f"Connection failed: {type(e).__name__}: {e}")
+                await asyncio.sleep(10)
         except Exception as e:
-            print(f"Connection failed: {type(e).__name__}: {e}")
-            print("Reconnecting in 10 seconds...")
+            print(f"Unexpected error: {type(e).__name__}: {e}")
             await asyncio.sleep(10)
 
 if __name__ == "__main__":
